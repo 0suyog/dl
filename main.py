@@ -14,6 +14,7 @@ font = pygame.font.Font("Bahnschrift.ttf", 20)
 #! Most of the decimal numbers are percentages so happy figuring out whats going on my mind rn
 # TODO STILL HAVE TO SEPERATE METHODS LIKE MAKE A DIFFERENT METHOD TO CALCULATE THE POSITIONS THAN DOING IT ALL WHILE DRAWING ITS GONNA MAKE THE APPLICATION FAST TOO
 
+
 # input/output bubble
 class Bubble:
     def __init__(self, pos, offset, value, size):
@@ -31,13 +32,11 @@ class Bubble:
     # def connect(self):
 
     def draw(self, screen):
-        self.rect=pygame.draw.circle(
+        self.rect = pygame.draw.circle(
             screen, (1, 1, 1), self.pos, self.size + int(self.size * 0.4)
         )
         # drawing bigger circle for border
-        pygame.draw.circle(
-            screen, self.color, self.pos, self.size
-        )  
+        pygame.draw.circle(screen, self.color, self.pos, self.size)
 
 
 class Connector:
@@ -68,7 +67,7 @@ class And_gate:
         self,
         pos,
         inp_lines=1,
-        data=[0,0],
+        data=[0, 0],
         screen_=screen,
         screen_rect_=screen_rect,
         scale=10,
@@ -104,36 +103,50 @@ class And_gate:
         )
         self.current_connecting_bubble = None
         self.current_wire = None
+        self.moving=False
+        self.calculate()
         # print(self.result)
 
-    def draw(self):
-        # vertical line
-        v_line_start = pygame.math.Vector2(self.width * 0.3, self.width * 0.1)
-        v_line_end = pygame.math.Vector2(self.width * 0.3, self.width * 0.9)
+    def calculate(self):
+        self.v_line_start = pygame.math.Vector2(self.width * 0.3, self.width * 0.1)
+        self.v_line_end = pygame.math.Vector2(self.width * 0.3, self.width * 0.9)
 
         self.difference = self.width / (
             self.inp_no + 1
         )  # gap at which inp lines should be at
         self.initial_pos = self.difference
-        center = pygame.math.Vector2(
+        self.center = pygame.math.Vector2(
             (self.width * 0.3), self.width / 2
         )  # center of the semicircle
-        width = int(self.width * 0.0375)  # border width of all the shapes
-        radius = v_line_start.distance_to(v_line_end) // 2 + width
-        pygame.draw.line(self.surface, (1, 1, 1), v_line_start, v_line_end, width)
-        pygame.draw.circle(self.surface, (1, 1, 1), center, radius, width)
-        pygame.draw.rect(
-            self.surface, "black", (0, 0, self.width * 0.3, self.width)
-        )  # to cover up the excess part of circle
+        self.border_width = int(self.width * 0.0375)  # border width of all the shapes
+        self.radius = (
+            self.v_line_start.distance_to(self.v_line_end) // 2 + self.border_width
+        )
 
+    def draw(self):
+        pygame.draw.line(
+            self.surface,
+            (1, 1, 1),
+            self.v_line_start,
+            self.v_line_end,
+            self.border_width,
+        )
+        pygame.draw.circle(
+            self.surface, (1, 1, 1), self.center, self.radius, self.border_width
+        )
+        # to cover up the excess part of circle
+        pygame.draw.rect(self.surface, "black", (0, 0, self.width * 0.3, self.width))
+
+        # input lines
+        self.initial_pos = self.difference
         for i in self.inp_bubbles:
             pygame.draw.line(
                 self.surface,
                 (1, 1, 1),
                 (0, self.initial_pos),
                 (self.width * 0.3, self.initial_pos),
-                width,
-            )  # input lines
+                self.border_width,
+            )
             # i.pos.y = self.initial_pos
             i.draw(self.surface)
             self.initial_pos += self.difference
@@ -141,15 +154,15 @@ class And_gate:
         pygame.draw.line(
             self.surface,
             (1, 1, 1),
-            (center.x + radius, self.width // 2),
+            (self.center.x + self.radius, self.width // 2),
             (self.width, self.width // 2),
-            width,
+            self.border_width,
         )
         self.output_bubble.pos = pygame.math.Vector2(
             self.width - int(self.width * 0.0375),
             self.width // 2,
         )
-        self.output_bubble.win_pos=self.output_bubble.pos+self.output_bubble.offset
+        self.output_bubble.win_pos = self.output_bubble.pos + self.output_bubble.offset
         self.output_bubble.draw(self.surface)
         # drawing borders
         pygame.draw.lines(
@@ -157,12 +170,15 @@ class And_gate:
             (1, 1, 1),
             True,
             [
-                (0, 0 + width),
-                (self.width - (width * 0.5), 0 + width),
-                (self.width - (width * 0.5), self.width - width),
-                (0, self.width - width),
+                (0, 0 + self.border_width),
+                (self.width - (self.border_width * 0.5), 0 + self.border_width),
+                (
+                    self.width - (self.border_width * 0.5),
+                    self.width - self.border_width,
+                ),
+                (0, self.width - self.border_width),
             ],
-            width,
+            self.border_width,
         )
 
         self.screen.blit(self.surface, self.rect)
@@ -199,7 +215,11 @@ class And_gate:
         )
         connector_group.append(self.current_wire)
         # Connector((self.current_connecting_bubble.rect.centerx-self.rect.left,self.current_connecting_bubble.rect.centery-self.rect.top), self.current_connecting_bubble.value)
-
+    def move(self):
+        buttons=pygame.mouse.get_pressed(num_buttons=3)
+        if buttons[0]:
+            self.calculate()
+            self.rect.center=pygame.mouse.get_pos()
 
 class Side_bar:
     def __init__(self):
@@ -237,7 +257,7 @@ class Side_bar:
 
 
 gates = {"and": And_gate, "or": And_gate, "not": And_gate}
-gate_group = [And_gate((500, 340), 2, [1,0]), And_gate((900, 340), 2, [1, 0])]
+gate_group = [And_gate((500, 340), 2, [1, 0]), And_gate((900, 340), 2, [1, 0])]
 active_gate = None
 active_bubbles = []
 connector_group = []
@@ -249,13 +269,18 @@ while running:
             running = False
         if event.type == pygame.MOUSEBUTTONDOWN:
             if active_gate == None:
+                
                 for i in gate_group:
                     active_gate = i.collisionwcursor()
                     if active_gate:
                         active_gate.connect()
                         break
+                    elif i.rect.collidepoint(pygame.mouse.get_pos()):
+                        i.move()
+                        break
             elif active_gate != None:
                 for i in gate_group:
+                    
                     # active_gate = None
                     temp = i.collisionwcursor()
                     if temp and temp != active_gate:
