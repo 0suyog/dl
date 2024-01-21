@@ -313,6 +313,7 @@ while running:
                             active_bubble.connected_wire.destination=active_bubble.connected_wire.source
                             active_bubble.connected_wire.source=active_bubble
                         active_bubble.value=active_bubble.connected_wire.value
+                        active_bubble.update_color()
                         temp=None
                         active_bubble = None
                         break
