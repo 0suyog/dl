@@ -17,22 +17,36 @@ font = pygame.font.Font("Bahnschrift.ttf", 20)
 
 # input/output bubble
 class Bubble:
-    def __init__(self, pos, offset, value, size,type):
+    def __init__(self, pos, offset, value, size, type):
         self.value = value
         self.size = size
-        self.type=type
+        self.type = type
+        self.pos = pygame.math.Vector2(pos)
         if self.value:
             self.color = (255, 0, 0)
         else:
             self.color = (25, 25, 25)
-        self.pos = pygame.math.Vector2(pos)
         self.offset = offset
         self.win_pos = self.pos + self.offset
         self.connected_wire = None
 
-    def update(self,offset):
-        self.offset=offset
-        self.win_pos=self.pos+self.offset
+    def connect(self):
+        self.connected_wire = Connector(self)
+        # self.connected_wires.append(self.current_wire)
+        connector_group.append(self.connected_wire)
+
+    def update(self, offset):
+        self.offset = offset
+        self.win_pos = self.pos + self.offset
+        if self.value:
+            self.color = (255, 0, 0)
+        else:
+            self.color = (25, 25, 25)
+    def update_color(self):
+        if self.value:
+            self.color = (255, 0, 0)
+        else:
+            self.color = (25, 25, 25)
 
     def draw(self, screen):
         self.rect = pygame.draw.circle(
@@ -43,12 +57,11 @@ class Bubble:
 
 
 class Connector:
-    def __init__(self, source, value):
-
+    def __init__(self, source):
         self.source = source
         self.start_pos = self.source.win_pos
         self.destination = None
-        self.value = value
+        self.value = source.value
         if self.value:
             self.color = (255, 0, 0)
         else:
@@ -57,8 +70,8 @@ class Connector:
         self.open = 1
 
     def update(self):
-        self.start_pos=self.source.win_pos
-        self.end_pos=self.destination.win_pos
+        self.start_pos = self.source.win_pos
+        self.end_pos = self.destination.win_pos
 
     def draw(self, screen):
         if self.open:
@@ -88,7 +101,7 @@ class And_gate:
         self.surface.set_colorkey((0, 0, 0))
         self.rect = self.surface.get_rect(topleft=self.pos)
         self.inp_no = inp_lines
-        self.difference = self.width / (self.inp_no + 1)
+        self.difference = self.width / (self.inp_no + 1) # gap at which inp lines should be at
         self.initial_pos = self.difference
         self.inp_bubbles = []
         for i in data:
@@ -98,23 +111,22 @@ class And_gate:
                     self.rect.topleft,
                     i,
                     self.width * 0.06,
-                    "input"
+                    "input",
                 )
             )
             self.initial_pos += self.difference
-        self.result = self.inp_bubbles[0]
+        self.result = 0
         self.screen = screen_
         self.screen_rect = screen_rect_
-        self.logic()
         self.output_bubble = Bubble(
-            (0, 0), self.rect.topleft, self.result, self.width * 0.06,"output"
+            (0, 0), self.rect.topleft, self.result, self.width * 0.06, "output"
         )
+        self.logic()
         self.current_connecting_bubble = None
         self.current_wire = None
-        self.connected_wires=[]
-        self.moving=False
+        self.connected_wires = []
+        self.moving = False
         self.calculate()
-        # print(self.result)
 
     def calculate(self):
         self.v_line_start = pygame.math.Vector2(self.width * 0.3, self.width * 0.1)
@@ -123,7 +135,6 @@ class And_gate:
         self.difference = self.width / (
             self.inp_no + 1
         )  # gap at which inp lines should be at
-        self.initial_pos = self.difference
         self.center = pygame.math.Vector2(
             (self.width * 0.3), self.width / 2
         )  # center of the semicircle
@@ -133,6 +144,7 @@ class And_gate:
         )
 
     def draw(self):
+        self.logic()
         pygame.draw.line(
             self.surface,
             (1, 1, 1),
@@ -194,8 +206,11 @@ class And_gate:
         self.screen.blit(self.surface, self.rect)
 
     def logic(self):
+        self.result=self.inp_bubbles[0].value
         for i in self.inp_bubbles:
             self.result = self.result and i.value
+        self.output_bubble.value=self.result
+        self.output_bubble.update_color()
 
     def collisionwcursor(self):
         for i in self.inp_bubbles:
@@ -204,36 +219,31 @@ class And_gate:
                 pygame.mouse.get_pos()[1] - self.rect.topleft[1],
             ):
                 self.current_connecting_bubble = i
-                return self
+                return i
 
         if self.output_bubble.rect.collidepoint(
             pygame.mouse.get_pos()[0] - self.rect.topleft[0],
             pygame.mouse.get_pos()[1] - self.rect.topleft[1],
         ):
             self.current_connecting_bubble = self.output_bubble
-            return self
+            return self.output_bubble
             # self.wire_pos=self.output_bubble.rect.center
 
-    def connect(self):
-        self.current_wire = Connector(
-            self.current_connecting_bubble,
-            self.current_connecting_bubble.value,
-        )
-        self.connected_wires.append(self.current_wire)
-        connector_group.append(self.current_wire)
         # Connector((self.current_connecting_bubble.rect.centerx-self.rect.left,self.current_connecting_bubble.rect.centery-self.rect.top), self.current_connecting_bubble.value)
+
     def move(self):
         self.output_bubble.update(self.rect.topleft)
         for i in self.inp_bubbles:
             i.update(self.rect.topleft)
         for i in self.connected_wires:
             i.update()
-        buttons=pygame.mouse.get_pressed(num_buttons=3)
+        buttons = pygame.mouse.get_pressed(num_buttons=3)
         if buttons[0]:
             self.calculate()
-            self.rect.center=pygame.mouse.get_pos()
+            self.rect.center = pygame.mouse.get_pos()
         else:
-            self.moving=False
+            self.moving = False
+
 
 class Side_bar:
     def __init__(self):
@@ -271,8 +281,8 @@ class Side_bar:
 
 
 gates = {"and": And_gate, "or": And_gate, "not": And_gate}
-gate_group = [And_gate((500, 340), 2, [1, 0]), And_gate((900, 340), 2, [1, 0])]
-active_gate = None
+gate_group = [And_gate((500, 340), 2, [1, 1]), And_gate((900, 340), 2, [0, 0])]
+active_bubble = None
 connector_group = []
 sidebar = Side_bar()
 sidebar.add_elem("and")
@@ -281,41 +291,35 @@ while running:
         if event.type == pygame.QUIT:
             running = False
         if event.type == pygame.MOUSEBUTTONDOWN:
-            if active_gate == None:
-                
+            if active_bubble == None:
                 for i in gate_group:
-                    active_gate = i.collisionwcursor()
-                    if active_gate:
-                        active_gate.connect()
+                    active_bubble = i.collisionwcursor()
+                    if active_bubble:
+                        active_bubble.connect()
                         break
                     elif i.rect.collidepoint(pygame.mouse.get_pos()):
                         i.moving=True
                         break
-            elif active_gate != None:
+            elif active_bubble != None:
                 for i in gate_group:
-                    
-                    # active_gate = None
                     temp = i.collisionwcursor()
-                    if temp and temp.current_connecting_bubble.type!=active_gate.current_connecting_bubble.type:
-                        temp.current_wire = active_gate.current_wire
-                        if temp!=active_gate:
-                            active_gate.current_connecting_bubble = None
-                            active_gate.current_wire = None
-                        active_gate = temp
-                        active_gate.current_wire.open = False
-                        active_gate.current_wire.destination = (
-                            active_gate.current_connecting_bubble
-                        )
-                        active_gate.current_connecting_bubble = None
-                        active_gate.current_wire = None
-                        active_gate = None
+                    if temp and temp != active_bubble and temp.type!=active_bubble.type:
+                        temp.connected_wire = active_bubble.connected_wire
+                        active_bubble = temp
+                        active_bubble.connected_wire.open = False
+                        if active_bubble.type=="output":
+                            active_bubble.connected_wire.destination = active_bubble
+                        elif active_bubble.type=="input":
+                            active_bubble.connected_wire.destination=active_bubble.connected_wire.source
+                            active_bubble.connected_wire.source=active_bubble
+                        active_bubble.value=active_bubble.connected_wire.value
+                        temp=None
+                        active_bubble = None
                         break
-                # active_gate = None
     screen.fill("purple")
     sidebar.draw(screen)
     # drawing connectors
     for i in connector_group:
-        # print(f"open = {i.open } mouse = {pygame.mouse.get_pos()} end_pos= {i.end_pos}")
         i.draw(screen)
     # drawing gate_group
     for i in gate_group:
