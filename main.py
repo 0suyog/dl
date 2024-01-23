@@ -12,7 +12,6 @@ running = True
 font = pygame.font.Font("Bahnschrift.ttf", 20)
 
 #! Most of the decimal numbers are percentages so happy figuring out whats going on my mind rn
-# TODO STILL HAVE TO SEPERATE METHODS LIKE MAKE A DIFFERENT METHOD TO CALCULATE THE POSITIONS THAN DOING IT ALL WHILE DRAWING ITS GONNA MAKE THE APPLICATION FAST TOO
 
 
 # input/output bubble
@@ -32,7 +31,6 @@ class Bubble:
 
     def connect(self):
         self.connected_wire = Connector(self)
-        # self.connected_wires.append(self.current_wire)
         connector_group.append(self.connected_wire)
 
     def update(self, offset):
@@ -42,11 +40,15 @@ class Bubble:
             self.color = (255, 0, 0)
         else:
             self.color = (25, 25, 25)
-    def update_color(self):
+
+    def update_value(self, value):
+        self.value = value
         if self.value:
             self.color = (255, 0, 0)
         else:
             self.color = (25, 25, 25)
+        if self.connected_wire:
+            self.connected_wire.update_value(self.value)
 
     def draw(self, screen):
         self.rect = pygame.draw.circle(
@@ -72,6 +74,15 @@ class Connector:
     def update(self):
         self.start_pos = self.source.win_pos
         self.end_pos = self.destination.win_pos
+
+    def update_value(self, value):
+        self.value = value
+        if self.value:
+            self.color = (255, 0, 0)
+        else:
+            self.color = (25, 25, 25)
+        # if self.destination  and self.destination.type == "output":
+        #     self.destination.update_value(self.value)
 
     def draw(self, screen):
         if self.open:
@@ -101,7 +112,9 @@ class And_gate:
         self.surface.set_colorkey((0, 0, 0))
         self.rect = self.surface.get_rect(topleft=self.pos)
         self.inp_no = inp_lines
-        self.difference = self.width / (self.inp_no + 1) # gap at which inp lines should be at
+        self.difference = self.width / (
+            self.inp_no + 1
+        )  # gap at which inp lines should be at
         self.initial_pos = self.difference
         self.inp_bubbles = []
         for i in data:
@@ -206,11 +219,10 @@ class And_gate:
         self.screen.blit(self.surface, self.rect)
 
     def logic(self):
-        self.result=self.inp_bubbles[0].value
+        self.result = self.inp_bubbles[0].value
         for i in self.inp_bubbles:
             self.result = self.result and i.value
-        self.output_bubble.value=self.result
-        self.output_bubble.update_color()
+        self.output_bubble.update_value(self.result)
 
     def collisionwcursor(self):
         for i in self.inp_bubbles:
@@ -281,7 +293,7 @@ class Side_bar:
 
 
 gates = {"and": And_gate, "or": And_gate, "not": And_gate}
-gate_group = [And_gate((500, 340), 2, [1, 1]), And_gate((900, 340), 2, [0, 0])]
+gate_group = [And_gate((500, 340), 2, [1, 1]), And_gate((630, 340), 2, [0, 0]),And_gate((760, 340), 2, [0, 0]),And_gate((890, 340), 2, [0, 0])]
 active_bubble = None
 connector_group = []
 sidebar = Side_bar()
@@ -298,23 +310,28 @@ while running:
                         active_bubble.connect()
                         break
                     elif i.rect.collidepoint(pygame.mouse.get_pos()):
-                        i.moving=True
+                        i.moving = True
                         break
             elif active_bubble != None:
                 for i in gate_group:
                     temp = i.collisionwcursor()
-                    if temp and temp != active_bubble and temp.type!=active_bubble.type:
+                    if (
+                        temp
+                        and temp != active_bubble
+                        and temp.type != active_bubble.type
+                    ):
                         temp.connected_wire = active_bubble.connected_wire
                         active_bubble = temp
                         active_bubble.connected_wire.open = False
-                        if active_bubble.type=="output":
+                        if active_bubble.type == "output":
                             active_bubble.connected_wire.destination = active_bubble
-                        elif active_bubble.type=="input":
-                            active_bubble.connected_wire.destination=active_bubble.connected_wire.source
-                            active_bubble.connected_wire.source=active_bubble
-                        active_bubble.value=active_bubble.connected_wire.value
-                        active_bubble.update_color()
-                        temp=None
+                        elif active_bubble.type == "input":
+                            active_bubble.connected_wire.destination = (
+                                active_bubble.connected_wire.source
+                            )
+                            active_bubble.connected_wire.source = active_bubble
+                        active_bubble.update_value(active_bubble.connected_wire.value)
+                        temp = None
                         active_bubble = None
                         break
     screen.fill("purple")
