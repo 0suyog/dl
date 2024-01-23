@@ -47,7 +47,7 @@ class Bubble:
             self.color = (255, 0, 0)
         else:
             self.color = (25, 25, 25)
-        if self.connected_wire:
+        if self.connected_wire and self.type == "output":
             self.connected_wire.update_value(self.value)
 
     def draw(self, screen):
@@ -81,8 +81,8 @@ class Connector:
             self.color = (255, 0, 0)
         else:
             self.color = (25, 25, 25)
-        # if self.destination  and self.destination.type == "output":
-        #     self.destination.update_value(self.value)
+        if self.destination:
+            self.destination.update_value(self.value)
 
     def draw(self, screen):
         if self.open:
@@ -323,9 +323,9 @@ while running:
                         temp.connected_wire = active_bubble.connected_wire
                         active_bubble = temp
                         active_bubble.connected_wire.open = False
-                        if active_bubble.type == "output":
+                        if active_bubble.type == "input":
                             active_bubble.connected_wire.destination = active_bubble
-                        elif active_bubble.type == "input":
+                        elif active_bubble.type == "output":
                             active_bubble.connected_wire.destination = (
                                 active_bubble.connected_wire.source
                             )
