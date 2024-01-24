@@ -47,8 +47,9 @@ class Bubble:
             self.color = (255, 0, 0)
         else:
             self.color = (25, 25, 25)
-        if self.connected_wire and self.type == "output":
-            self.connected_wire.update_value(self.value)
+        # if self.connected_wire and self.type == "output":
+        #     print(self.type)
+        #     self.connected_wire.update_value(self.value)
 
     def draw(self, screen):
         self.rect = pygame.draw.circle(
@@ -56,6 +57,27 @@ class Bubble:
         )
         # drawing bigger circle for border
         pygame.draw.circle(screen, self.color, self.pos, self.size)
+
+
+class Out_Bubble(Bubble):
+    def __init__(self, pos, offset, value, size, type):
+        super().__init__(pos, offset, value, size, type)
+        self.wires = []
+
+    def connect(self):
+        self.connected_wire = Connector(self)
+        connector_group.append(self.connected_wire)
+        self.wires.append(self.connected_wire)
+
+    def update_value(self, value):
+        self.value = value
+        if self.value:
+            self.color = (255, 0, 0)
+        else:
+            self.color = (25, 25, 25)
+        if self.connected_wire:
+            for i in self.wires:
+                i.update_value(self.value)
 
 
 class Connector:
@@ -97,7 +119,6 @@ class And_gate:
     def __init__(
         self,
         pos,
-        inp_lines=1,
         data=[0, 0],
         screen_=screen,
         screen_rect_=screen_rect,
@@ -111,9 +132,8 @@ class And_gate:
         )
         self.surface.set_colorkey((0, 0, 0))
         self.rect = self.surface.get_rect(topleft=self.pos)
-        self.inp_no = inp_lines
         self.difference = self.width / (
-            self.inp_no + 1
+            len(data) + 1
         )  # gap at which inp lines should be at
         self.initial_pos = self.difference
         self.inp_bubbles = []
@@ -131,7 +151,7 @@ class And_gate:
         self.result = 0
         self.screen = screen_
         self.screen_rect = screen_rect_
-        self.output_bubble = Bubble(
+        self.output_bubble = Out_Bubble(
             (0, 0), self.rect.topleft, self.result, self.width * 0.06, "output"
         )
         self.logic()
@@ -146,7 +166,7 @@ class And_gate:
         self.v_line_end = pygame.math.Vector2(self.width * 0.3, self.width * 0.9)
 
         self.difference = self.width / (
-            self.inp_no + 1
+            len(self.inp_bubbles) + 1
         )  # gap at which inp lines should be at
         self.center = pygame.math.Vector2(
             (self.width * 0.3), self.width / 2
@@ -257,6 +277,13 @@ class And_gate:
             self.moving = False
 
 
+class Or_gate:
+    def __init__(
+        self, pos, data=[0, 0], screen_=screen, screen_rect_=screen_rect, scale=10
+    ):
+        self.pos = pos
+
+
 class Side_bar:
     def __init__(self):
         self.pos = (0, 0)
@@ -273,7 +300,6 @@ class Side_bar:
         elem = pygame.Surface((e_width, e_height))
         gate_elem = gates[name](
             (e_width * 0.013, e_height * 0.3),
-            2,
             [1, 1],
             self.surface,
             self.rect,
@@ -293,7 +319,12 @@ class Side_bar:
 
 
 gates = {"and": And_gate, "or": And_gate, "not": And_gate}
-gate_group = [And_gate((500, 340), 2, [1, 1]), And_gate((630, 340), 2, [0, 0]),And_gate((760, 340), 2, [0, 0]),And_gate((890, 340), 2, [0, 0])]
+gate_group = [
+    And_gate((500, 340), [1, 1]),
+    And_gate((630, 340), [0, 0]),
+    And_gate((760, 340), [0, 0]),
+    And_gate((890, 340), [0, 0]),
+]
 active_bubble = None
 connector_group = []
 sidebar = Side_bar()
