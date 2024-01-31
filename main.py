@@ -47,8 +47,8 @@ class Bubble:
             self.color = (255, 0, 0)
         else:
             self.color = (25, 25, 25)
-        # if self.connected_wire and self.type == "output":
-        #     self.connected_wire.update_value(self.value)
+        if self.connected_wire and self.type == "output":
+            self.connected_wire.update_value(self.value)
 
     def draw(self, screen):
         self.rect = pygame.draw.circle(
@@ -105,6 +105,7 @@ class Connector:
             self.color = (25, 25, 25)
         if self.destination:
             self.destination.update_value(self.value)
+            print("meow")
 
     def draw(self, screen):
         if self.open:
@@ -355,6 +356,7 @@ class Or_gate(Gate):
 class Not_gate():
     def __init__(self, pos, data=0, screen_=screen, screen_rect_=screen_rect, scale=10):
         self.pos = pygame.math.Vector2(pos)
+        self.prev_pos=(540,0)
         self.scale = pygame.math.clamp(scale, 2.67, 50)
         self.width = 1 * self.scale * 10
         self.surface = pygame.surface.Surface(
@@ -547,6 +549,9 @@ while running:
                                 active_bubble.connected_wire.source
                             )
                             active_bubble.connected_wire.source = active_bubble
+                            active_bubble.wires.append(active_bubble.connected_wire)
+                            active_bubble.connected_wire.update_value(active_bubble.value)
+                        print(f"should be input {active_bubble.connected_wire.destination.value}, should be output={active_bubble.connected_wire.source.value}")
                         active_bubble.update_value(active_bubble.connected_wire.value)
                         temp = None
                         active_bubble = None
