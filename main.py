@@ -52,7 +52,7 @@ class Bubble:
 
     def draw(self, screen):
         self.rect = pygame.draw.circle(
-            screen, self.color, self.pos, self.size + int(self.size * 0.4)
+            screen, (1,1,1), self.pos, self.size + int(self.size * 0.4)
         )
         # drawing bigger circle for border
         pygame.draw.circle(screen, self.color, self.pos, self.size)
@@ -121,7 +121,7 @@ class Gate:
         self,
         pos,
         data=[0, 0],
-        screen_=screen,
+        screen_=screen, 
         screen_rect_=screen_rect,
         scale=10,
     ):
@@ -136,7 +136,7 @@ class Gate:
         self.surface.set_alpha(self.alpha)
         self.color=(1,1,1)
         self.surface.set_colorkey((0, 0, 0))
-        self.rect = self.surface.get_rect(topleft=self.pos)
+        self.rect = self.surface.get_rect(topleft=self.pos) 
         self.border_width = int(self.width * 0.0375)  # border width of all the shapes
         self.difference = self.width / (
             len(data) + 1
@@ -169,22 +169,33 @@ class Gate:
         )
         self.output_bubble.win_pos = self.output_bubble.pos + self.output_bubble.offset
         self.invalid_pos=False
+        self.resizing=False
+        # self.borders=[pygame.draw.line(surface=self.surface,color=self.color,start_pos=(0,self.border_width*0.45),end_pos=(self.width,self.border_width*0.45),width=self.border_width),
+        # pygame.draw.line(surface=self.surface,color=self.color,start_pos=(self.width-(self.border_width*0.5),self.border_width*0.5),end_pos=(self.width-(self.border_width*0.5),self.width),width=self.border_width),
+        # pygame.draw.line(surface=self.surface,color=self.color,start_pos=(self.width-(self.border_width*0.5),self.width-(self.border_width*0.5)),end_pos=(0,self.width-(self.border_width*0.5)),width=self.border_width),
+        # pygame.draw.line(surface=self.surface,color=self.color,start_pos=(self.border_width*0.45,self.width-(self.border_width*0.5)),end_pos=(self.border_width*0.45,0),width=self.border_width)
+        # ]
+        self.borders_pos=[((0,self.border_width*0.45),(self.width,self.border_width*0.45)),
+                          ((self.width-(self.border_width*0.5),self.border_width*0.5),(self.width-(self.border_width*0.5),self.width)),
+                          ((self.width-(self.border_width*0.5),self.width-(self.border_width*0.5)),(0,self.width-(self.border_width*0.5))),
+                          ((self.border_width*0.45,self.width-(self.border_width*0.5)),(self.border_width*0.45,0))]
 
     def collisionwcursor(self):
-        for i in self.inp_bubbles:
-            if i.rect.collidepoint(
+        if not self.resizing:
+            for i in self.inp_bubbles:
+                if i.rect.collidepoint(
+                    pygame.mouse.get_pos()[0] - self.rect.topleft[0],
+                    pygame.mouse.get_pos()[1] - self.rect.topleft[1],
+                ):
+                    self.current_connecting_bubble = i
+                    return i
+
+            if self.output_bubble.rect.collidepoint(
                 pygame.mouse.get_pos()[0] - self.rect.topleft[0],
                 pygame.mouse.get_pos()[1] - self.rect.topleft[1],
             ):
-                self.current_connecting_bubble = i
-                return i
-
-        if self.output_bubble.rect.collidepoint(
-            pygame.mouse.get_pos()[0] - self.rect.topleft[0],
-            pygame.mouse.get_pos()[1] - self.rect.topleft[1],
-        ):
-            self.current_connecting_bubble = self.output_bubble
-            return self.output_bubble
+                self.current_connecting_bubble = self.output_bubble
+                return self.output_bubble
             # self.wire_pos=self.output_bubble.rect.center
 
         # Connector((self.current_connecting_bubble.rect.centerx-self.rect.left,self.current_connecting_bubble.rect.centery-self.rect.top), self.current_connecting_bubble.value)
@@ -215,6 +226,27 @@ class Gate:
         for i in self.connected_wires:
             i.update()
         self.surface.set_alpha(self.alpha)
+    def resize(self):
+        buttons = pygame.mouse.get_pressed(num_buttons=3)
+        if buttons[0] and not self.moving:
+            print("helo")
+            self.scale=pygame.math.clamp(pygame.Vector2.distance_squared_to(pygame.Vector2(self.prev_pos),pygame.mouse.get_pos()), 2.67, 50)
+            # self.scale+=pygame.Vector2.distance_squared_to(pygame.Vector2(self.prev_pos),pygame.mouse.get_pos())
+            print((pygame.Vector2(self.prev_pos),pygame.mouse.get_pos()))
+            self.width = 1 * self.scale * 10
+            self.surface=pygame.transform.scale(self.surface,(self.width,self.width))
+            self.surface.set_colorkey((0,0,0))
+            self.rect=self.surface.get_rect(topleft=self.rect.topleft)
+        else:
+            self.resizing=False
+    def draw_borders(self):
+        buttons=pygame.mouse.get_pressed(num_buttons=3)
+        for i in self.borders_pos:
+            # print(f"start={i[0]} end={i[1]}")
+            rect=pygame.draw.line(surface=self.surface,color=self.color,start_pos=i[0],end_pos=i[1],width=self.border_width)
+            if buttons[0] and  rect.collidepoint(pygame.mouse.get_pos()[0]-self.rect.topleft[0],pygame.mouse.get_pos()[1]-self.rect.topleft[1]) and self.resizing==False and self.moving==False:
+                self.resizing=True
+                self.prev_pos=pygame.mouse.get_pos()
 
 
 class And_gate(Gate):
@@ -244,6 +276,10 @@ class And_gate(Gate):
 
     def draw(self):
         self.logic()
+        if self.moving:
+            self.move()
+        if self.resizing:
+            self.resize()
         pygame.draw.line(
             self.surface,
             self.color,
@@ -279,14 +315,18 @@ class And_gate(Gate):
         )
 
         self.output_bubble.draw(self.surface)
+        self.draw_borders()
         # drawing borders
-        pygame.draw.line(surface=self.surface,color=self.color,start_pos=(0,self.border_width*0.45),end_pos=(self.width,self.border_width*0.45),width=self.border_width)
-        pygame.draw.line(surface=self.surface,color=self.color,start_pos=(self.width-(self.border_width*0.5),self.border_width*0.5),end_pos=(self.width-(self.border_width*0.5),self.width),width=self.border_width)
-        pygame.draw.line(surface=self.surface,color=self.color,start_pos=(self.width-(self.border_width*0.5),self.width-(self.border_width*0.5)),end_pos=(0,self.width-(self.border_width*0.5)),width=self.border_width)
-        pygame.draw.line(surface=self.surface,color=self.color,start_pos=(self.border_width*0.45,self.width-(self.border_width*0.5)),end_pos=(self.border_width*0.45,0),width=self.border_width)
+        # pygame.draw.line(surface=self.surface,color=self.color,start_pos=(0,self.border_width*0.45),end_pos=(self.width,self.border_width*0.45),width=self.border_width)
+        # pygame.draw.line(surface=self.surface,color=self.color,start_pos=(self.width-(self.border_width*0.5),self.border_width*0.5),end_pos=(self.width-(self.border_width*0.5),self.width),width=self.border_width)
+        # pygame.draw.line(surface=self.surface,color=self.color,start_pos=(self.width-(self.border_width*0.5),self.width-(self.border_width*0.5)),end_pos=(0,self.width-(self.border_width*0.5)),width=self.border_width)
+        # pygame.draw.line(surface=self.surface,color=self.color,start_pos=(self.border_width*0.45,self.width-(self.border_width*0.5)),end_pos=(self.border_width*0.45,0),width=self.border_width)
         self.screen.blit(self.surface, self.rect)
-        if self.moving:
-            self.move()
+
+
+
+
+
     def logic(self):
         self.result = self.inp_bubbles[0].value
         for i in self.inp_bubbles:
@@ -448,13 +488,20 @@ class Bar_elem:
         self.name=name 
         self.width=width
         self.height=height
+        self.border_color=(1,1,1)
         self.surface=pygame.Surface((self.width,self.height))
         self.rect=self.surface.get_rect(topleft=self.pos)
         self.text = font.render(self.name, 1, (0, 0, 0))
-        self.textrect = self.text.get_rect(topleft=(self.width * 0.15, self.height * 0.55))
-        self.gate=gates[self.name](pos=(self.width*0.2,self.height*0.3),screen_=self.surface,screen_rect_=self.rect,scale=3.5)
+        self.textrect = self.text.get_rect(topleft=(self.width * 0.2, self.height * 0.4))
+        self.gate=gates[self.name](pos=(self.width*0.025,self.height*0.25),screen_=self.surface,screen_rect_=self.rect,scale=3.5)
     def draw(self,screen):
         self.surface.fill("white")
+        pygame.draw.line(surface=self.surface,color=self.border_color,start_pos=(0,0),end_pos=(self.width,0),width=3)
+        pygame.draw.line(surface=self.surface,color=self.border_color,start_pos=(self.width,0),end_pos=(self.width,self.height),width=3)
+        pygame.draw.line(surface=self.surface,color=self.border_color,start_pos=(self.width,self.height),end_pos=(0,self.height),width=3)
+        pygame.draw.line(surface=self.surface,color=self.border_color,start_pos=(0,self.height),end_pos=(0,0),width=3)
+
+        # pygame.draw.line()
         self.surface.blit(self.text,self.textrect)
         self.gate.draw()
         screen.blit(self.surface,self.rect)
@@ -463,7 +510,7 @@ class Bar_elem:
 class Side_bar:
     def __init__(self):
         self.pos = (0, 0)
-        self.width = window_width * 0.3
+        self.width = window_width * 0.2
         self.height = window_height
         self.surface = pygame.surface.Surface((self.width, self.height))
         self.surface.fill((38, 44, 54))
