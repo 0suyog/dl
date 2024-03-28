@@ -30,7 +30,7 @@ class Bubble:
         self.connected_wire = None
 
     def connect(self):
-        self.connected_wire = Connector(self)
+        self.connected_wire = Connector(self,True)
         connector_group.append(self.connected_wire)
 
     def update(self, offset):
@@ -64,7 +64,7 @@ class Out_Bubble(Bubble):
         self.wires = []
 
     def connect(self):
-        self.connected_wire = Connector(self)
+        self.connected_wire = Connector(self,True)
         connector_group.append(self.connected_wire)
         self.wires.append(self.connected_wire)
 
@@ -80,23 +80,35 @@ class Out_Bubble(Bubble):
 
 
 class Connector:
-    def __init__(self, source):
+    def __init__(self, source,initial=False):
         self.source = source
-        self.start_pos = self.source.win_pos
-        self.destination = None
+        self.initial=initial
         self.value = source.value
         if self.value:
             self.color = (255, 0, 0)
         else:
             self.color = (25, 25, 25)
-        self.end_pos = pygame.mouse.get_pos()
-        self.open = 1
+        self.open = True
         self.alpha=50
+        if self.initial:
+            self.start_pos = self.source.win_pos
+            self.end_pos = (self.start_pos[0],pygame.mouse.get_pos()[1])
+            self.destination=Connector(self)
+            connector_group.append(self.destination)
+        else:
+            print(self.source.start_pos)
+            self.end_pos = pygame.mouse.get_pos()
+            self.start_pos = (pygame.mouse.get_pos()[0],self.source.end_pos[1])
+            self.destination = None
+        
 
     def update(self):
-        self.start_pos = self.source.win_pos
-        self.end_pos = self.destination.win_pos
-
+        if self.initial:
+            self.start_pos = self.source.start_pos
+            self.end_pos = self.destination.start_pos
+        else:
+            self.start_pos=self.source.end_pos
+            self.end_pos=self.destination.win_pos
     def update_value(self, value):
         self.value = value
         if self.value:
@@ -105,15 +117,26 @@ class Connector:
             self.color = (25, 25, 25)
         if self.destination:
             self.destination.update_value(self.value)
-            print("meow")
 
     def draw(self, screen):
         if self.open:
-            self.end_pos = pygame.mouse.get_pos()
+            if self.initial:
+                self.end_pos = (pygame.mouse.get_pos()[0],self.start_pos[1])
+            else:
+                if self.source.open==False:
+                    self.open=False
+                self.start_pos=self.source.end_pos
+                self.end_pos=pygame.mouse.get_pos()
         else:
-            self.end_pos = self.destination.win_pos
-
-        pygame.draw.line(screen, self.color, self.source.win_pos, self.end_pos, 5)
+            if self.initial:
+                self.end_pos = (self.destination.start_pos[0],self.start_pos[1])
+            else:
+                self.open=self.source.open
+                self.start_pos=self.source.end_pos
+                self.end_pos = self.destination.win_pos
+                # self.end_pos=pygame.mouse.get_pos()
+        print(self.source,self.open)
+        pygame.draw.line(screen, self.color, self.start_pos, self.end_pos, 5)
 
 
 class Gate:
@@ -175,10 +198,10 @@ class Gate:
         # pygame.draw.line(surface=self.surface,color=self.color,start_pos=(self.width-(self.border_width*0.5),self.width-(self.border_width*0.5)),end_pos=(0,self.width-(self.border_width*0.5)),width=self.border_width),
         # pygame.draw.line(surface=self.surface,color=self.color,start_pos=(self.border_width*0.45,self.width-(self.border_width*0.5)),end_pos=(self.border_width*0.45,0),width=self.border_width)
         # ]
-        self.borders_pos=[((0,self.border_width*0.45),(self.width,self.border_width*0.45)),
-                          ((self.width-(self.border_width*0.5),self.border_width*0.5),(self.width-(self.border_width*0.5),self.width)),
-                          ((self.width-(self.border_width*0.5),self.width-(self.border_width*0.5)),(0,self.width-(self.border_width*0.5))),
-                          ((self.border_width*0.45,self.width-(self.border_width*0.5)),(self.border_width*0.45,0))]
+        # self.borders_pos=[((0,self.border_width*0.45),(self.width,self.border_width*0.45)),
+        #                   ((self.width-(self.border_width*0.5),self.border_width*0.5),(self.width-(self.border_width*0.5),self.width)),
+        #                   ((self.width-(self.border_width*0.5),self.width-(self.border_width*0.5)),(0,self.width-(self.border_width*0.5))),
+        #                   ((self.border_width*0.45,self.width-(self.border_width*0.5)),(self.border_width*0.45,0))]
 
     def collisionwcursor(self):
         if not self.resizing:
@@ -226,27 +249,7 @@ class Gate:
         for i in self.connected_wires:
             i.update()
         self.surface.set_alpha(self.alpha)
-    def resize(self):
-        buttons = pygame.mouse.get_pressed(num_buttons=3)
-        if buttons[0] and not self.moving:
-            print("helo")
-            self.scale=pygame.math.clamp(pygame.Vector2.distance_squared_to(pygame.Vector2(self.prev_pos),pygame.mouse.get_pos()), 2.67, 50)
-            # self.scale+=pygame.Vector2.distance_squared_to(pygame.Vector2(self.prev_pos),pygame.mouse.get_pos())
-            print((pygame.Vector2(self.prev_pos),pygame.mouse.get_pos()))
-            self.width = 1 * self.scale * 10
-            self.surface=pygame.transform.scale(self.surface,(self.width,self.width))
-            self.surface.set_colorkey((0,0,0))
-            self.rect=self.surface.get_rect(topleft=self.rect.topleft)
-        else:
-            self.resizing=False
-    def draw_borders(self):
-        buttons=pygame.mouse.get_pressed(num_buttons=3)
-        for i in self.borders_pos:
-            # print(f"start={i[0]} end={i[1]}")
-            rect=pygame.draw.line(surface=self.surface,color=self.color,start_pos=i[0],end_pos=i[1],width=self.border_width)
-            if buttons[0] and  rect.collidepoint(pygame.mouse.get_pos()[0]-self.rect.topleft[0],pygame.mouse.get_pos()[1]-self.rect.topleft[1]) and self.resizing==False and self.moving==False:
-                self.resizing=True
-                self.prev_pos=pygame.mouse.get_pos()
+
 
 
 class And_gate(Gate):
@@ -258,6 +261,7 @@ class And_gate(Gate):
         self.calculate()
 
     def calculate(self):
+        self.border_width = int(self.width * 0.0375)
         self.v_line_start = pygame.math.Vector2(
             self.width * 0.3, self.width * 0.1
         )  # backbone of and gate
@@ -273,13 +277,16 @@ class And_gate(Gate):
         self.radius = (
             self.v_line_start.distance_to(self.v_line_end) // 2 + self.border_width
         )
+        # self.borders_pos=[((0,self.border_width*0.45),(self.width,self.border_width*0.45)),
+        #                   ((self.width-(self.border_width*0.5),self.border_width*0.5),(self.width-(self.border_width*0.5),self.width)),
+        #                   ((self.width-(self.border_width*0.5),self.width-(self.border_width*0.5)),(0,self.width-(self.border_width*0.5))),
+        #                   ((self.border_width*0.45,self.width-(self.border_width*0.5)),(self.border_width*0.45,0))]
+
 
     def draw(self):
         self.logic()
         if self.moving:
             self.move()
-        if self.resizing:
-            self.resize()
         pygame.draw.line(
             self.surface,
             self.color,
@@ -315,7 +322,6 @@ class And_gate(Gate):
         )
 
         self.output_bubble.draw(self.surface)
-        self.draw_borders()
         # drawing borders
         # pygame.draw.line(surface=self.surface,color=self.color,start_pos=(0,self.border_width*0.45),end_pos=(self.width,self.border_width*0.45),width=self.border_width)
         # pygame.draw.line(surface=self.surface,color=self.color,start_pos=(self.width-(self.border_width*0.5),self.border_width*0.5),end_pos=(self.width-(self.border_width*0.5),self.width),width=self.border_width)
@@ -375,10 +381,10 @@ class Or_gate(Gate):
             i.draw(self.surface)
         pygame.draw.line(surface=self.surface,color=self.color,start_pos=((self.width + (self.width * 0.7))-self.width*0.9,self.width*0.5),end_pos=(self.width,self.width*0.5),width=self.border_width)
         self.output_bubble.draw(screen=self.surface)
-        pygame.draw.line(surface=self.surface,color=self.color,start_pos=(0,self.border_width*0.45),end_pos=(self.width,self.border_width*0.45),width=self.border_width)
-        pygame.draw.line(surface=self.surface,color=self.color,start_pos=(self.width-(self.border_width*0.5),self.border_width*0.5),end_pos=(self.width-(self.border_width*0.5),self.width),width=self.border_width)
-        pygame.draw.line(surface=self.surface,color=self.color,start_pos=(self.width-(self.border_width*0.5),self.width-(self.border_width*0.5)),end_pos=(0,self.width-(self.border_width*0.5)),width=self.border_width)
-        pygame.draw.line(surface=self.surface,color=self.color,start_pos=(self.border_width*0.45,self.width-(self.border_width*0.5)),end_pos=(self.border_width*0.45,0),width=self.border_width)
+        # pygame.draw.line(surface=self.surface,color=self.color,start_pos=(0,self.border_width*0.45),end_pos=(self.width,self.border_width*0.45),width=self.border_width)
+        # pygame.draw.line(surface=self.surface,color=self.color,start_pos=(self.width-(self.border_width*0.5),self.border_width*0.5),end_pos=(self.width-(self.border_width*0.5),self.width),width=self.border_width)
+        # pygame.draw.line(surface=self.surface,color=self.color,start_pos=(self.width-(self.border_width*0.5),self.width-(self.border_width*0.5)),end_pos=(0,self.width-(self.border_width*0.5)),width=self.border_width)
+        # pygame.draw.line(surface=self.surface,color=self.color,start_pos=(self.border_width*0.45,self.width-(self.border_width*0.5)),end_pos=(self.border_width*0.45,0),width=self.border_width)
         if self.moving:
             self.move()
         self.screen.blit(self.surface, self.rect)
@@ -543,10 +549,18 @@ class Side_bar:
         for i in self.bars:
             i.draw(self.surface)
         for i in self.just4show:
-            print("meow")
             i.draw()
         screen.blit(self.surface, self.rect)
         # self.collisionwcursor()
+
+
+class merged_gates(Gate):
+    def __init__(self,*args):
+        self.result=args[0].value
+        for i in args:
+            self.result=i.value
+        print(self.result)
+
 
 
 gates = {"And": And_gate, "Or": Or_gate, "Not": Not_gate}
@@ -589,16 +603,23 @@ while running:
                         temp.connected_wire = active_bubble.connected_wire
                         active_bubble = temp
                         active_bubble.connected_wire.open = False
+                        # active_bubble.connected_wire.destination.open=False
                         if active_bubble.type == "input":
-                            active_bubble.connected_wire.destination = active_bubble
+                            active_bubble.connected_wire.destination.destination = active_bubble
                         elif active_bubble.type == "output":
-                            active_bubble.connected_wire.destination = (
+                            # active_bubble.connected_wire.source=active_bubble.destination.destination
+                            # active_bubble.connected_wire.destination.initial=False
+                            active_bubble.connected_wire.destination.destination = (
                                 active_bubble.connected_wire.source
                             )
                             active_bubble.connected_wire.source = active_bubble
+                            active_bubble.connected_wire.destination
+                            active_bubble.connected_wire.initial=True
+                            # active_bubble.connected_wire.destination=active_bubble.connected_wire
+                            # active_bubble.connected_wire.initial=True
                             active_bubble.wires.append(active_bubble.connected_wire)
                             active_bubble.connected_wire.update_value(active_bubble.value)
-                        print(f"should be input {active_bubble.connected_wire.destination.value}, should be output={active_bubble.connected_wire.source.value}")
+                        # print(f"should be input {active_bubble.connected_wire.destination.value}, should be output={active_bubble.connected_wire.source.value}")
                         active_bubble.update_value(active_bubble.connected_wire.value)
                         temp = None
                         active_bubble = None
